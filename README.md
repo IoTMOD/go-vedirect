@@ -1,4 +1,9 @@
+## WIP
+
+## Fork of https://github.com/rosenstand/go-vedirect
+
 # Go package for VE.Direct
+
 go-vedirect can read data from the VE.Direct serial protocol used in compatible products by Victron Energy.
 
 It currently uses the [tarm/serial](https://github.com/tarm/serial) Go package for setting up the serial port.
@@ -6,6 +11,7 @@ It currently uses the [tarm/serial](https://github.com/tarm/serial) Go package f
 Has been tested on a Raspberry Pi Zero W connected to a Victron Energy SmartSolar MPPT 75/15 solar charger.
 
 ## Disclaimer
+
 This is my first Go program. It's not pretty (yet). Suggestions for improvements will be highly appreciated.
 
 ## Usage

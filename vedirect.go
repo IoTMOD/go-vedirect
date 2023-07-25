@@ -1,11 +1,9 @@
 package vedirect
 
 import (
-	//"bytes"
 	"fmt"
 	"log"
-	//"os"
-	//"strings"
+
 	"github.com/tarm/serial"
 )
 
@@ -18,15 +16,12 @@ const (
 )
 
 type Block struct {
-	checksum int
-	fields   map[string]string
+	Checksum int
+	Fields   map[string]string
 }
 
 func (b Block) Validate() bool {
-	if b.checksum%256 == 0 {
-		return true
-	}
-	return false
+	return b.Checksum%256 == 0
 }
 
 type Stream struct {
@@ -40,7 +35,7 @@ type Streamer interface {
 	Read() int
 }
 
-func NewStream(dev string) Stream {
+func NewStream(dev string) (Stream, error) {
 	s := Stream{}
 	s.Device = dev
 	s.State = 0
@@ -49,16 +44,10 @@ func NewStream(dev string) Stream {
 	c := &serial.Config{Name: s.Device, Baud: 19200}
 	s.Port, err = serial.OpenPort(c)
 	if err != nil {
-		log.Fatal(err)
+		return s, err
 	}
-	/*
-		s.Port, err = os.Open(s.Device)
-		if err != nil {
-			log.Fatal(err)
-		}
-	*/
 	fmt.Println("Stream initialized:", s)
-	return s
+	return s, nil
 }
 
 // Field format: <Newline><Field-Label><Tab><Field-Value>
@@ -69,11 +58,9 @@ func NewStream(dev string) Stream {
 
 func (s *Stream) ReadBlock() (Block, int) {
 	var b = Block{}
-	b.fields = make(map[string]string)
+	b.Fields = make(map[string]string)
 	var frame_length int = 0
 	var prev_state int
-	//var label string
-	//var value string
 	var label = make([]byte, 0, 9)  // VE recommended buffer size.
 	var value = make([]byte, 0, 33) // VE recommended buffer size.
 
@@ -92,7 +79,6 @@ func (s *Stream) ReadBlock() (Block, int) {
 		// catch and ignore VE.Direct HEX frames from stream, otherwise
 		// they mess up our checksum and we lose the current block.
 		if char == ':' && s.State != InChecksum { // ":": beginning of frame
-			//if str == ":" { // ":": beginning of frame
 			prev_state = s.State // save state
 			s.State = InFrame
 			frame_length = 1
@@ -102,30 +88,26 @@ func (s *Stream) ReadBlock() (Block, int) {
 			frame_length = frame_length + 1
 			if str == "\n" { // end of frame
 				s.State = prev_state // restore state
-				fmt.Printf("%d bytes HEX frame ignored\n", frame_length)
+				//fmt.Printf("%d bytes HEX frame ignored\n", frame_length)
 			}
 			continue // ignore frame contents
 		}
 
 		// convert byte to integer and add to sum.
-		b.checksum += int(buf[0])
+		b.Checksum += int(buf[0])
 
 		// end of block. must process before byte evaluation.
 		// checksum byte could have any value.
 		if s.State == InChecksum {
 			s.State = WaitHeader
-			//if b.checksum % 256 == 0 {
-			return b, b.checksum % 256 // 0 on valid checksum
-			//} else {
-			//  fmt.Println("Bad block!", b.fields)
-			//}
+			return b, b.Checksum % 256 // 0 on valid checksum
 		}
 
 		switch char {
 		case 13: // "\r": beginning of field
 			if s.State != WaitHeader { // avoid zero-valued entry on first run
 				//  b.fields[label] = value
-				b.fields[string(label)] = string(value)
+				b.Fields[string(label)] = string(value)
 			}
 			//label = ""
 			//value = ""
